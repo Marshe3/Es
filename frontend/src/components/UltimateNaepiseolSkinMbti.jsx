@@ -1,13 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Droplet, Sun, Wind, Heart, CheckCircle, ChevronRight, ArrowLeft, ArrowRight, BarChart3, MessageCircle, Send, X, Calendar, TrendingUp, Moon, Zap, Target, LineChart, AlertCircle } from 'lucide-react';
+import { Sparkles, Droplet, Sun, Wind, Heart, CheckCircle, ChevronRight, ArrowLeft, ArrowRight, BarChart3, MessageCircle, Send, X, Calendar, TrendingUp, Moon, Zap, Target, LineChart, AlertCircle, CalendarHeartIcon } from 'lucide-react';
 
 // 카카오 SDK 초기화 (실제 앱 키로 교체 필요)
 const initKakao = () => {
-  if (window.Kakao && !window.Kakao.isInitialized()) {
-    window.Kakao.init('YOUR_KAKAO_APP_KEY'); // 실제 카카오 JavaScript 키로 교체
+  if (!window.Kakao) return;
+  if (!window.Kakao.isInitialized()) {
+    window.Kakao.init(process.env.REACT_APP_KAKAO_JS_KEY); // ← .env 에서 읽음
+    console.log('Kakao init:', window.Kakao.isInitialized());
   }
 };
+
 
 // 40개 질문 데이터
 const questions = [
@@ -622,12 +625,12 @@ export default function SkinMBTITest() {
     // 카카오톡 공유
     if (window.Kakao && window.Kakao.isInitialized()) {
       try {
-        window.Kakao.Link.sendDefault({
+        window.Kakao.Share.sendDefault({
           objectType: 'feed',
           content: {
             title: shareTitle,
             description: shareDescription,
-            imageUrl: 'https://i.imgur.com/placeholder.png', // 실제 이미지 URL로 교체 필요
+            imageUrl: 'https://localhost:3000/images/skin-share.png', // 실제 이미지 URL로 교체 필요
             link: {
               mobileWebUrl: shareUrl,
               webUrl: shareUrl,
@@ -1159,7 +1162,7 @@ export default function SkinMBTITest() {
                   { id: 'analysis', label: '상세 분석', icon: BarChart3 },
                   { id: 'diary', label: '피부 일기', icon: Calendar },
                   { id: 'routine', label: '맞춤 루틴', icon: Target },
-                  { id: 'tracking', label: '변화 추적', icon: TrendingUp }
+                  { id: 'tracking', label: '피부 기록 캘린더', icon: CalendarHeartIcon }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -1695,9 +1698,16 @@ export default function SkinMBTITest() {
 
               <div className="p-6 space-y-6">
                 {/* 제품 이미지 */}
-                <div className="w-full h-64 bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400 rounded-2xl flex items-center justify-center">
-                  <Sparkles className="w-24 h-24 text-white opacity-50" />
-                </div>
+				<div className="w-full h-64 rounded-2xl overflow-hidden bg-gray-100">
+				  <img
+				    src={getRecommendedProduct()?.imageUrl}
+				    alt={getRecommendedProduct()?.name}
+				    className="w-full h-full object-cover"
+				    onError={(e) => {
+				      e.currentTarget.src = 'https://via.placeholder.com/800x400/E5E7EB/9CA3AF?text=No+Image';
+				    }}
+				  />
+				</div>
 
                 {/* 제품 기본 정보 */}
                 <div>

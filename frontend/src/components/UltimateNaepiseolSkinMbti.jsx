@@ -1,13 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Droplet, Sun, Wind, Heart, CheckCircle, ChevronRight, ArrowLeft, ArrowRight, BarChart3, MessageCircle, Send, X, Calendar, TrendingUp, Moon, Zap, Target, LineChart, AlertCircle } from 'lucide-react';
+import { Sparkles, Droplet, Sun, Wind, Heart, CheckCircle, ChevronRight, ArrowLeft, ArrowRight, BarChart3, MessageCircle, Send, X, Calendar, TrendingUp, Moon, Zap, Target, LineChart, AlertCircle, CalendarHeartIcon } from 'lucide-react';
 
 // 카카오 SDK 초기화 (실제 앱 키로 교체 필요)
 const initKakao = () => {
-  if (window.Kakao && !window.Kakao.isInitialized()) {
-    window.Kakao.init('YOUR_KAKAO_APP_KEY'); // 실제 카카오 JavaScript 키로 교체
+  if (!window.Kakao) return;
+  if (!window.Kakao.isInitialized()) {
+    window.Kakao.init(process.env.REACT_APP_KAKAO_JS_KEY); // ← .env 에서 읽음
+    console.log('Kakao init:', window.Kakao.isInitialized());
   }
 };
+
 
 // 40개 질문 데이터
 const questions = [
@@ -384,57 +387,34 @@ function Chatbot({ skinType, onClose }) {
 
     const userMessage = input.trim();
     setInput('');
-    
+
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('http://localhost:8086/api/chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer YOUR_OPENAI_API_KEY`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'system',
-              content: `당신은 피부 관리 전문가이자 제품 추천 전문가입니다. 사용자의 피부 타입은 ${skinType.type} (${skinType.title})입니다. 
-              
-특징: ${skinType.characteristics.join(', ')}
-관리 방법: ${skinType.care.join(', ')}
-추천 제품: ${skinType.products.join(', ')}
-
-사용자의 피부 타입에 맞는 구체적인 제품을 추천해주세요. 제품명, 브랜드, 주요 성분, 사용법을 포함하여 상세하게 설명해주세요. 가격대도 언급해주면 좋습니다. 답변은 친절하고 전문적으로, 2-4문장으로 해주세요.`
-            },
-            ...messages.map(msg => ({
-              role: msg.role,
-              content: msg.content
-            })),
-            {
-              role: 'user',
-              content: userMessage
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 500
+          message: userMessage,
+          skinType: `${skinType.type} (${skinType.title})`
         })
       });
 
       const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error.message);
+
+      if (!response.ok) {
+        throw new Error(data.message || '오류가 발생했습니다.');
       }
 
-      const assistantMessage = data.choices[0].message.content;
-      setMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: '죄송합니다. 일시적인 오류가 발생했습니다. API 키를 확인해주세요. 🙏' 
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '죄송합니다. 일시적인 오류가 발생했습니다. 백엔드 서버가 실행 중인지 확인해주세요. 🙏'
       }]);
     } finally {
       setIsLoading(false);
@@ -622,12 +602,12 @@ export default function SkinMBTITest() {
     // 카카오톡 공유
     if (window.Kakao && window.Kakao.isInitialized()) {
       try {
-        window.Kakao.Link.sendDefault({
+        window.Kakao.Share.sendDefault({
           objectType: 'feed',
           content: {
             title: shareTitle,
             description: shareDescription,
-            imageUrl: 'https://i.imgur.com/placeholder.png', // 실제 이미지 URL로 교체 필요
+            imageUrl: 'https://localhost:3000/images/skin-share.png', // 실제 이미지 URL로 교체 필요
             link: {
               mobileWebUrl: shareUrl,
               webUrl: shareUrl,
@@ -1159,7 +1139,7 @@ export default function SkinMBTITest() {
                   { id: 'analysis', label: '상세 분석', icon: BarChart3 },
                   { id: 'diary', label: '피부 일기', icon: Calendar },
                   { id: 'routine', label: '맞춤 루틴', icon: Target },
-                  { id: 'tracking', label: '변화 추적', icon: TrendingUp }
+                  { id: 'tracking', label: '피부 기록 캘린더', icon: CalendarHeartIcon }
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -1695,9 +1675,16 @@ export default function SkinMBTITest() {
 
               <div className="p-6 space-y-6">
                 {/* 제품 이미지 */}
-                <div className="w-full h-64 bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400 rounded-2xl flex items-center justify-center">
-                  <Sparkles className="w-24 h-24 text-white opacity-50" />
-                </div>
+				<div className="w-full h-64 rounded-2xl overflow-hidden bg-gray-100">
+				  <img
+				    src={getRecommendedProduct()?.imageUrl}
+				    alt={getRecommendedProduct()?.name}
+				    className="w-full h-full object-cover"
+				    onError={(e) => {
+				      e.currentTarget.src = 'https://via.placeholder.com/800x400/E5E7EB/9CA3AF?text=No+Image';
+				    }}
+				  />
+				</div>
 
                 {/* 제품 기본 정보 */}
                 <div>
